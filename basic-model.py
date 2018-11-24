@@ -9,9 +9,16 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import csv
 import datetime
+from keras.layers import LSTM
+from sklearn.preprocessing import MinMaxScaler
+
+from sklearn.metrics import mean_squared_error
+from math import sqrt
 
 #Make this 1 if you want to see some fancy training & error plots
 show_plots = 1
+#Do this for LSTM model
+do_lstm = 0
 
 #Load 15 year mortagage average interest rate
 #15-Year Fixed Rate Mortgage Average in the United States
@@ -122,17 +129,32 @@ test_data = np.column_stack((test_data, trend_test_data))
 train_data = np.column_stack((train_data,morg_vals))
 test_data = np.column_stack((test_data, morg_test_vals))
 
-# Shuffle the training set
-order = np.argsort(np.random.random(train_labels.shape))
-train_data = train_data[order]
-train_labels = train_labels[order]
+#Preprocess data before submitting to NN
+# Shuffle the training set for NN, not for LSTM where order matters
+if do_lstm != 1:
+    order = np.argsort(np.random.random(train_labels.shape))
+    train_data = train_data[order]
+    train_labels = train_labels[order]
+    #Subtract mean divide by std dev to normalize data
+    mean = train_data.mean(axis=0)
+    std = train_data.std(axis=0)
+    train_data = (train_data - mean) / std
+    test_data = (test_data - mean) / std
 
-#Normalize the dataset
-# Test data is *not* used when calculating the mean and std
-mean = train_data.mean(axis=0)
-std = train_data.std(axis=0)
-train_data = (train_data - mean) / std
-test_data = (test_data - mean) / std
+else:
+    dataset = np.column_stack((train_data,train_labels))
+    test_data_lstm = np.column_stack((test_data, test_labels))
+    dataset = np.vstack((dataset, test_data_lstm))
+    #Normalize the dataset to 0,1
+    scaler = MinMaxScaler(feature_range=(0, 1))
+    dataset = scaler.fit_transform(dataset)
+    #Extract training data/labels
+    num_entries = dataset.shape[0]
+    train_data = dataset[:num_entries-100,:-1]
+    train_labels = dataset[:num_entries-100,-1]
+    test_data = dataset[num_entries-100:,:-1]
+    test_labels = dataset[num_entries-100:,-1]
+
 
 print("First training sample, normalized:")
 print(train_data[0])  # First training sample, normalized
@@ -153,7 +175,24 @@ def build_model():
                 metrics=['mae'])
   return model
 
-model = build_model()
+def build_lstm_model(train_data):
+    model = keras.Sequential()
+    model.add(keras.layers.LSTM(64, return_sequences=True, input_shape=(train_data.shape[1],train_data.shape[2])))
+    model.add(keras.layers.LSTM(64))
+    model.add(keras.layers.Dense(1))
+
+    # compile and fit the model
+    model.compile(loss='mean_squared_error', optimizer='adam')
+
+    return model
+
+print(train_data.shape)
+if do_lstm == 1:
+    train_data = np.reshape(train_data, (len(train_data), 1, train_data.shape[1]))
+    test_data = np.reshape(test_data, (len(test_data), 1, test_data.shape[1]))
+    model = build_lstm_model(train_data)
+else:
+    model = build_model()
 model.summary()
 
 # Display training progress by printing a single dot for each completed epoch
@@ -186,16 +225,51 @@ def plot_history(history):
   if show_plots == 1:
       plt.show()
 
-plot_history(history)
+def plot_lstm_history(history):
+  plt.figure()
+  plt.xlabel('Epoch')
+  plt.ylabel('Loss [$1]')
+  plt.plot(history.epoch, np.array(history.history['loss']),
+           label='Train Loss')
+  plt.plot(history.epoch, np.array(history.history['val_loss']),
+           label = 'Val loss')
+  plt.legend()
+  if show_plots == 1:
+      plt.show()
+
+if do_lstm == 1:
+    plot_lstm_history(history)
+else:
+    plot_history(history)
 
 #Test on test data set
-[loss, mae] = model.evaluate(test_data, test_labels, verbose=0)
+if do_lstm != 1:
+    [loss, mae] = model.evaluate(test_data, test_labels, verbose=0)
+else:
+    print(model.metrics_names)
+    loss = model.evaluate(test_data, test_labels, verbose=0)
 
-print("Testing set Mean Abs Error: ${:7.2f}".format(mae))
-
+if do_lstm != 1:
+    print("Testing set Mean Abs Error: ${:7.2f}".format(mae))
 
 #Predict on data set
-test_predictions = model.predict(test_data).flatten()
+if do_lstm != 1:
+    test_predictions = model.predict(test_data).flatten()
+else:
+    #Get matrix to calculate RMSE
+    test_predictions = model.predict(test_data)
+    #Reformat the test data so we can get the raw prediction values in $
+    test_data = np.reshape(test_data,(test_data.shape[0],test_data.shape[2]))
+    prediction_data_out = np.column_stack((test_data, test_predictions))
+    test_data_out = np.column_stack((test_data, test_labels))
+    #Un-scale the prediction and test data
+    prediction_inverse = scaler.inverse_transform(prediction_data_out)
+    test_inverse = scaler.inverse_transform(test_data_out)
+    #Caculate root mean square error for predictions
+    RMSE = sqrt(mean_squared_error(test_inverse[:,-1], prediction_inverse[:,-1]))
+    test_predictions = prediction_inverse[:,-1]
+    test_labels = test_inverse[:,-1]
+    print('Test RMSE: %.3f' % RMSE)
 
 #Plot test value and test prediction versus days
 x_label = test_dates[0].strftime("%B %d, %Y") + ' ... ' + test_dates[99].strftime("%B %d, %Y")
