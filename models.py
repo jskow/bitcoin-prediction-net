@@ -9,9 +9,9 @@ from keras.layers import LSTM
 #Build a tensorflow model.  2 hidden layers, also train it
 def build_basic_model(train_data):
   model = keras.Sequential([
-    keras.layers.Dense(64, activation=tf.nn.relu,
+    keras.layers.Dense(128, activation=tf.nn.relu,
                        input_shape=(train_data.shape[1],)),
-    keras.layers.Dense(64, activation=tf.nn.relu),
+    keras.layers.Dense(128, activation=tf.nn.relu),
     keras.layers.Dense(1)
   ])
 
@@ -24,8 +24,8 @@ def build_basic_model(train_data):
 
 def build_lstm_model(train_data):
     model = keras.Sequential()
-    model.add(keras.layers.LSTM(64, return_sequences=True, input_shape=(train_data.shape[1],train_data.shape[2])))
-    model.add(keras.layers.LSTM(64))
+    model.add(keras.layers.LSTM(256, return_sequences=True, input_shape=(train_data.shape[1],train_data.shape[2])))
+    model.add(keras.layers.LSTM(256))
     model.add(keras.layers.Dense(1))
 
     # compile and fit the model

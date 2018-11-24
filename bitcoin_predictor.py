@@ -73,18 +73,12 @@ else:
 #Print structure of model we are using
 model.summary()
 
-# Display training progress by printing a single dot for each completed epoch
-class PrintDot(keras.callbacks.Callback):
-  def on_epoch_end(self, epoch, logs):
-    if epoch % 100 == 0: print('')
-    print('.', end='')
-
 # Store training stats
 # The patience parameter is the amount of epochs to check for improvement
 early_stop = keras.callbacks.EarlyStopping(monitor='val_loss', patience=20)
 history = model.fit(train_data, train_labels, epochs=EPOCHS,
                     validation_split=0.2, verbose=0,
-                    callbacks=[early_stop, PrintDot()])
+                    callbacks=[early_stop, display.PrintDot()])
 
 #Show training results & check error on data set
 if do_lstm:
