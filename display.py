@@ -38,13 +38,13 @@ def plot_lstm_history(history):
   plt.show()
 
 def plot_predictions(test_dates, test_predictions, test_labels):
-    x_label = test_dates[0].strftime("%B %d, %Y") + ' ... ' + test_dates[99].strftime("%B %d, %Y")
-    date_idx = np.arange(0,100,1)
+    x_label = test_dates[0].strftime("%B %d, %Y") + ' ... ' + test_dates[len(test_dates)-1].strftime("%B %d, %Y")
+    date_idx = np.arange(0,len(test_dates),1)
     plt.scatter(date_idx, test_predictions)
     plt.scatter(date_idx, test_labels)
     plt.xlabel(x_label)
     plt.ylabel('Predictions [$1]')
-    plt.xlim([-5,105])
+    plt.xlim([-5,len(test_dates)+5])
     plt.ylim(plt.ylim())
     plt.plot(date_idx, test_predictions, label='Predictions')
     plt.plot(date_idx, test_labels, label='Actual')

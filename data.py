@@ -9,11 +9,9 @@ import pandas as pd
 
 #Load 15 year mortagage average interest rate
 #15-Year Fixed Rate Mortgage Average in the United States
-def load_morg_avg_us():
+def load_morg_avg_us(datelist, num_test_data):
     data = pd.read_csv('bitcoin-historical-data/MORTGAGE15US.csv',parse_dates=True,index_col=0)
 
-    #Create data with all dates we want
-    datelist = pd.date_range(start='31-12-2011', end='11-10-2018')
     #Reindex based on days, and fill the new days based on the previous week data
     data = data.reindex(datelist, method="ffill")
 
@@ -24,19 +22,17 @@ def load_morg_avg_us():
     num_entries = len(data)
 
     #Set aside 100 values for validation
-    test_data = data[num_entries-100:]
-    data = data[:num_entries-101]
+    test_data = data[num_entries-num_test_data:]
+    data = data[:num_entries-num_test_data+1]
 
     return data.values, test_data.values
 
 
 #Create dataset from weekly google trends dataset
 #Market data starts 12-31-2011, so only start data from there
-def load_google_trends_data():
+def load_google_trends_data(datelist, num_test_data):
     data = pd.read_csv('bitcoin-historical-data/bitcoin_search_volume.csv',parse_dates=True,index_col=0)
 
-    #Create data with all dates we want
-    datelist = pd.date_range(start='31-12-2011', end='11-10-2018')
     #Reindex based on days, and fill the new days based on the previous week data
     data = data.reindex(datelist, method="ffill")
 
@@ -47,13 +43,13 @@ def load_google_trends_data():
     num_entries = len(data)
 
     #Set aside 100 values for validation
-    test_data = data[num_entries-100:]
-    data = data[:num_entries-101]
+    test_data = data[num_entries-num_test_data:]
+    data = data[:num_entries-num_test_data+1]
 
     return data.values, test_data.values
 
 #Get bitcoin dataset
-def bitcoin_load_data_with_pd():
+def bitcoin_load_data_with_pd(datelist, num_test_data):
     data = pd.read_csv('bitcoin-historical-data/bitstampUSD_1-min_data_2012-01-01_to_2018-11-11.csv')
 
     #Group the data by day instead of by minute
@@ -69,7 +65,6 @@ def bitcoin_load_data_with_pd():
 
     #Check with rows have NaN so we can filter other data also
     #Make sure all dates are present.  Find missing days and scrub from all data
-    datelist = pd.date_range(start='31-12-2011', end='11-10-2018').date
     #Index the data by date
     data = data.set_index('date')
     #Duplicate data to fill for any missing entries
@@ -82,20 +77,21 @@ def bitcoin_load_data_with_pd():
     data = data[:(len(data)-1)]
 
     #Record number of samples
-    num_entries = len(Daily_Price)
+    num_entries = data.shape[0]
 
     #Collect testing dates for plotting purposes
+    #Remove 1st date since we don't predict that price
     testing_dates = datelist
-    testing_dates = testing_dates[num_entries-100:]
+    testing_dates = testing_dates[num_entries-num_test_data+1:]
 
     #Drop timestamp, date from dataset
     data = data.drop(labels='Timestamp', axis=1)
 
     #Set aside 100 entires for testing
-    test_data = data[num_entries-100:]
-    test_prices = Daily_Price[num_entries-100:]
-    data = data[:num_entries-101]
-    Daily_Price = Daily_Price[:num_entries-101:]
+    test_data = data[num_entries-num_test_data:]
+    test_prices = Daily_Price[num_entries-num_test_data:]
+    data = data[:num_entries-num_test_data+1]
+    Daily_Price = Daily_Price[:num_entries-num_test_data+1:]
 
     #Get final matrix form without the indices
     data = data.values
