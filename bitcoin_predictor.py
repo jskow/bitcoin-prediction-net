@@ -25,6 +25,7 @@ import preprocess
 #Display training process/prediction results
 import display
 import postprocess
+import os
 
 #Choose verbose, and model type
 parser = argparse.ArgumentParser(description="Choose model type/plot visibility. \
@@ -36,6 +37,8 @@ parser.add_argument('plots', nargs='?', default=1,
                     help='Choose to show or hide plots',type=int)
 parser.add_argument('timesteps', nargs='?', default=1,
                     help='Number of timesteps (LSTM)',type=int)
+parser.add_argument('--log', nargs='?', default=0,
+                    help='Enable/Disable log (1 for enable)',type=int)
 
 args = parser.parse_args()
 #Make this 1 if you want to see some fancy training & error plots
@@ -44,6 +47,7 @@ show_plots = args.plots
 do_lstm = args.model
 #Create time steps for LSTM
 timestep = args.timesteps
+do_log = args.log
 #Number of times to train on all the data
 EPOCHS = 500
 if do_lstm == 1:
@@ -91,7 +95,7 @@ model.summary()
 
 # Store training stats
 # The patience parameter is the amount of epochs to check for improvement
-early_stop = keras.callbacks.EarlyStopping(monitor='val_loss', patience=250)
+early_stop = keras.callbacks.EarlyStopping(monitor='val_loss', patience=25)
 history = model.fit(train_data, train_labels, epochs=EPOCHS,
                     validation_split=0.2, verbose=0,
                     callbacks=[early_stop, display.PrintDot()])
@@ -130,9 +134,24 @@ else:
 
 #Plot test value and test prediction versus days
 if show_plots:
-    print(test_dates.shape, test_predictions.shape, test_labels.shape)
     display.plot_predictions(test_dates, test_predictions, test_labels)
 
 #Error of data set
 if show_plots:
     display.plot_prediction_error(test_predictions,test_labels)
+
+#Log the data for comparing the models
+#If there is no log directory, create one and create a "bitcoin_log.csv" file
+if do_log:
+    path = os.getcwd()
+    if os.path.isdir(path + "log") != True:
+        os.mkdir(path + "/log")
+
+    log = open(path + "/log/bitcoin_log.csv","a+")
+    print(path + "/log/bitcoin_log.csv")
+    if do_lstm:
+        #Save LSTM, # time steps, RMSE, # EPOCHS, # units
+        log.write("lstm," + str(timestep) + "," + str(RMSE) + "," + str(EPOCHS) + "," + str(16))
+    #else:
+
+    log.close()

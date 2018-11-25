@@ -24,8 +24,8 @@ def build_basic_model(train_data):
 
 def build_lstm_model(train_data):
     model = keras.Sequential()
-    model.add(keras.layers.LSTM(128, return_sequences=True, input_shape=(train_data.shape[1],train_data.shape[2])))
-    model.add(keras.layers.LSTM(128))
+    model.add(keras.layers.LSTM(16, return_sequences=True, input_shape=(train_data.shape[1],train_data.shape[2])))
+    model.add(keras.layers.LSTM(16))
     model.add(keras.layers.Dense(1))
 
     # compile and fit the model
