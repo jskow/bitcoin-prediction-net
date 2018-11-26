@@ -28,26 +28,26 @@ import postprocess
 import os
 
 #Choose verbose, and model type
-parser = argparse.ArgumentParser(description="Choose model type/plot visibility. \
-                                            ./bitcoin_predictor 1 1 is LSTM with \
-                                            visible plots.")
-parser.add_argument('model', nargs='?', default=0,
+parser = argparse.ArgumentParser(description="Use -h for options.  Modify model/training parameters.")
+parser.add_argument('--model', nargs='?', default=0,
                     help='Type of model (1 for LSTM)',type=int)
-parser.add_argument('plots', nargs='?', default=1,
+parser.add_argument('--plots', nargs='?', default=1,
                     help='Choose to show or hide plots',type=int)
-parser.add_argument('timesteps', nargs='?', default=1,
+parser.add_argument('--timesteps', nargs='?', default=1,
                     help='Number of timesteps (LSTM)',type=int)
 parser.add_argument('--log', nargs='?', default=0,
                     help='Enable/Disable log (1 for enable)',type=int)
 #Add parser for # of LSTM units/nodes, # EPOCHS, Learning rate
-parser.add_argument('nn_nodes', nargs='?', default=16,
+parser.add_argument('--nn_nodes', nargs='?', default=16,
                     help='Nodes in NN',type=int)
-parser.add_argument('epochs', nargs='?', default=500,
+parser.add_argument('--epochs', nargs='?', default=500,
                     help='Number of epochs',type=int)
-parser.add_argument('learning_rate', nargs='?', default=1,
+parser.add_argument('--learning_rate', nargs='?', default=.001,
                     help='learning rate',type=float)
-parser.add_argument('validation_split', nargs='?', default=.2,
-                    help='learning rate',type=float)
+parser.add_argument('--validation_split', nargs='?', default=.2,
+                    help='validation split',type=float)
+parser.add_argument('--use_optimal', nargs='?', default=0,
+                    help='validation split',type=int)
 
 args = parser.parse_args()
 #Make this 1 if you want to see some fancy training & error plots
@@ -62,14 +62,36 @@ nn_nodes = args.nn_nodes
 EPOCHS = args.epochs
 learning_rate = args.learning_rate
 validation_split = args.validation_split
+use_optimal = args.use_optimal
 
-#Number of times to train on all the data
-#EPOCHS = 500
+#If use_optimal, then we use the settings based on overnight testing data
+if use_optimal:
+    if do_lstm == 1:
+        if timestep == 1:
+            EPOCHS = 150
+            nn_nodes = 144
+            learning_rate = .001
+            validation_split=0.1
+        else:
+            timestep = 5
+            EPOCHS = 150
+            nn_nodes = 16
+            learning_rate = .001
+            validation_split = 0.2
+    else:
+        EPOCHS = 400
+        nn_nodes = 64
+        learning_rate = 0.06
+        validation_split = 0.125
+
 if do_lstm == 1:
     print("Running LSTM model, timesteps: ", timestep)
 else:
     print("Running basic NN model")
-
+print(nn_nodes, "nodes/layer")
+print(EPOCHS, "epochs")
+print(learning_rate, "= learning rate")
+print(str(validation_split*100) + "%", "= validation_split")
 
 
 #Specify the dates to test on
@@ -110,12 +132,10 @@ model.summary()
 
 # Store training stats
 # The patience parameter is the amount of epochs to check for improvement
-# Commented out to test # of epochs to compare 
-# early_stop = keras.callbacks.EarlyStopping(monitor='val_loss', patience=500)
+early_stop = keras.callbacks.EarlyStopping(monitor='val_loss', patience=EPOCHS)
 history = model.fit(train_data, train_labels, epochs=EPOCHS,
                     validation_split=validation_split, verbose=0,
-                    callbacks=[display.PrintDot()])
-                    #callbacks=[early_stop, display.PrintDot()])
+                    callbacks=[early_stop, display.PrintDot()])
 
 #Show training results & check error on data set
 if do_lstm:
@@ -174,4 +194,3 @@ if do_log:
                   + "," + str(learning_rate) + "," + str(validation_split) + "\n")
 
     log.close()
-
