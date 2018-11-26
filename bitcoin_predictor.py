@@ -39,6 +39,15 @@ parser.add_argument('timesteps', nargs='?', default=1,
                     help='Number of timesteps (LSTM)',type=int)
 parser.add_argument('--log', nargs='?', default=0,
                     help='Enable/Disable log (1 for enable)',type=int)
+#Add parser for # of LSTM units/nodes, # EPOCHS, Learning rate
+parser.add_argument('nn_nodes', nargs='?', default=16,
+                    help='Nodes in NN',type=int)
+parser.add_argument('epochs', nargs='?', default=500,
+                    help='Number of epochs',type=int)
+parser.add_argument('learning_rate', nargs='?', default=1,
+                    help='learning rate',type=float)
+parser.add_argument('validation_split', nargs='?', default=.2,
+                    help='learning rate',type=float)
 
 args = parser.parse_args()
 #Make this 1 if you want to see some fancy training & error plots
@@ -48,8 +57,14 @@ do_lstm = args.model
 #Create time steps for LSTM
 timestep = args.timesteps
 do_log = args.log
+#New logging args
+nn_nodes = args.nn_nodes
+EPOCHS = args.epochs
+learning_rate = args.learning_rate
+validation_split = args.validation_split
+
 #Number of times to train on all the data
-EPOCHS = 500
+#EPOCHS = 500
 if do_lstm == 1:
     print("Running LSTM model, timesteps: ", timestep)
 else:
@@ -80,7 +95,7 @@ test_data = np.column_stack((test_data, morg_test_vals))
 if do_lstm != 1:
     train_data, train_labels, test_data = \
         preprocess.prep_basic_data(train_data, train_labels, test_data)
-    model = models.build_basic_model(train_data)
+    model = models.build_basic_model(train_data, learning_rate, nn_nodes)
 else:
     if timestep == 1:
         train_data, train_labels, test_data, test_labels, scaler = \
@@ -88,17 +103,19 @@ else:
     else:
         train_data, train_labels, test_data, test_labels, scaler, orig_dataset = \
             preprocess.prep_lstm_data_with_time(train_data, train_labels, test_data, test_labels,num_test_data,timestep)
-    model = models.build_lstm_model(train_data)
+    model = models.build_lstm_model(train_data, learning_rate, nn_nodes)
 
 #Print structure of model we are using
 model.summary()
 
 # Store training stats
 # The patience parameter is the amount of epochs to check for improvement
-early_stop = keras.callbacks.EarlyStopping(monitor='val_loss', patience=25)
+# Commented out to test # of epochs to compare 
+# early_stop = keras.callbacks.EarlyStopping(monitor='val_loss', patience=500)
 history = model.fit(train_data, train_labels, epochs=EPOCHS,
-                    validation_split=0.2, verbose=0,
-                    callbacks=[early_stop, display.PrintDot()])
+                    validation_split=validation_split, verbose=0,
+                    callbacks=[display.PrintDot()])
+                    #callbacks=[early_stop, display.PrintDot()])
 
 #Show training results & check error on data set
 if do_lstm:
@@ -144,14 +161,17 @@ if show_plots:
 #If there is no log directory, create one and create a "bitcoin_log.csv" file
 if do_log:
     path = os.getcwd()
-    if os.path.isdir(path + "log") != True:
+    if os.path.isdir(path + "/log") != True:
         os.mkdir(path + "/log")
 
     log = open(path + "/log/bitcoin_log.csv","a+")
-    print(path + "/log/bitcoin_log.csv")
     if do_lstm:
         #Save LSTM, # time steps, RMSE, # EPOCHS, # units
-        log.write("lstm," + str(timestep) + "," + str(RMSE) + "," + str(EPOCHS) + "," + str(16))
-    #else:
+        log.write("lstm," + str(timestep) + "," + str(RMSE) + "," + str(EPOCHS) + "," + str(nn_nodes) \
+                  + "," + str(learning_rate) + "," + str(validation_split) + "\n")
+    else:
+        log.write("nn," + str(timestep) + "," + str(RMSE) + "," + str(EPOCHS) + "," + str(nn_nodes) \
+                  + "," + str(learning_rate) + "," + str(validation_split) + "\n")
 
     log.close()
+
